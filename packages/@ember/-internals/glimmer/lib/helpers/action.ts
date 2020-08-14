@@ -2,17 +2,21 @@
 @module ember
 */
 import { get } from '@ember/-internals/metal';
-import { symbol } from '@ember/-internals/utils';
 import { assert } from '@ember/debug';
 import { flaggedInstrument } from '@ember/instrumentation';
 import { join } from '@ember/runloop';
 import { DEBUG } from '@glimmer/env';
 import { VMArguments } from '@glimmer/interfaces';
-import { PathReference } from '@glimmer/reference';
-import { UnboundRootReference } from '../utils/references';
-import { INVOKE } from './mut';
+import {
+  createUnboundRef,
+  isInvokableRef,
+  Reference,
+  updateRef,
+  valueForRef,
+} from '@glimmer/reference';
+import { _WeakSet } from '@glimmer/util';
 
-export const ACTION = symbol('ACTION');
+export const ACTIONS = new _WeakSet();
 
 /**
   The `{{action}}` helper provides a way to pass triggers for behavior (usually
@@ -277,7 +281,7 @@ export const ACTION = symbol('ACTION');
   @for Ember.Templates.helpers
   @public
 */
-export default function(args: VMArguments): UnboundRootReference<Function> {
+export default function(args: VMArguments): Reference<Function> {
   let { named, positional } = args;
 
   let capturedArgs = positional.capture();
@@ -296,30 +300,29 @@ export default function(args: VMArguments): UnboundRootReference<Function> {
 
   let fn: Function;
 
-  if (typeof action[INVOKE] === 'function') {
-    fn = makeClosureAction(action, action, action[INVOKE], processArgs, debugKey);
+  if (isInvokableRef(action)) {
+    fn = makeClosureAction(action, action, invokeRef, processArgs, debugKey);
+    // } else if (isConstTagged(target) && isConstTagged(action)) {
+    //   fn = makeClosureAction(context.value(), target.value(), action.value(), processArgs, debugKey);
   } else {
-    fn = makeDynamicClosureAction(context.value(), target, action, processArgs, debugKey);
+    fn = makeDynamicClosureAction(valueForRef(context), target, action, processArgs, debugKey);
   }
 
-  fn[ACTION] = true;
+  ACTIONS.add(fn);
 
-  return new UnboundRootReference(fn);
+  return createUnboundRef(fn, '(result of an `action` helper)');
 }
 
 function NOOP(args: VMArguments) {
   return args;
 }
 
-function makeArgsProcessor(
-  valuePathRef: PathReference<unknown> | false,
-  actionArgsRef: Array<PathReference<unknown>>
-) {
+function makeArgsProcessor(valuePathRef: Reference | false, actionArgsRef: Reference[]) {
   let mergeArgs: any;
 
   if (actionArgsRef.length > 0) {
     mergeArgs = (args: VMArguments) => {
-      return actionArgsRef.map(ref => ref.value()).concat(args);
+      return actionArgsRef.map(valueForRef).concat(args);
     };
   }
 
@@ -327,7 +330,7 @@ function makeArgsProcessor(
 
   if (valuePathRef) {
     readValue = (args: any) => {
-      let valuePath = valuePathRef.value();
+      let valuePath = valueForRef(valuePathRef);
 
       if (valuePath && args.length > 0) {
         args[0] = get(args[0], valuePath as string);
@@ -355,13 +358,23 @@ function makeDynamicClosureAction(
 ) {
   // We don't allow undefined/null values, so this creates a throw-away action to trigger the assertions
   if (DEBUG) {
-    makeClosureAction(context, targetRef.value(), actionRef.value(), processArgs, debugKey);
+    makeClosureAction(
+      context,
+      valueForRef(targetRef),
+      valueForRef(actionRef),
+      processArgs,
+      debugKey
+    );
   }
 
   return (...args: any[]) => {
-    return makeClosureAction(context, targetRef.value(), actionRef.value(), processArgs, debugKey)(
-      ...args
-    );
+    return makeClosureAction(
+      context,
+      valueForRef(targetRef),
+      valueForRef(actionRef),
+      processArgs,
+      debugKey
+    )(...args);
   };
 }
 
@@ -380,29 +393,24 @@ function makeClosureAction(
     action !== undefined && action !== null
   );
 
-  if (typeof action[INVOKE] === 'function') {
-    self = action;
-    fn = action[INVOKE];
+  let typeofAction = typeof action;
+
+  if (typeofAction === 'string') {
+    self = target;
+    fn = target.actions && target.actions[action];
+
+    assert(`An action named '${action}' was not found in ${target}`, fn);
+  } else if (typeofAction === 'function') {
+    self = context;
+    fn = action;
   } else {
-    let typeofAction = typeof action;
-
-    if (typeofAction === 'string') {
-      self = target;
-      fn = target.actions && target.actions[action];
-
-      assert(`An action named '${action}' was not found in ${target}`, fn);
-    } else if (typeofAction === 'function') {
-      self = context;
-      fn = action;
-    } else {
-      // tslint:disable-next-line:max-line-length
-      assert(
-        `An action could not be made for \`${debugKey ||
-          action}\` in ${target}. Please confirm that you are using either a quoted action name (i.e. \`(action '${debugKey ||
-          'myAction'}')\`) or a function available in ${target}.`,
-        false
-      );
-    }
+    // tslint:disable-next-line:max-line-length
+    assert(
+      `An action could not be made for \`${debugKey ||
+        action}\` in ${target}. Please confirm that you are using either a quoted action name (i.e. \`(action '${debugKey ||
+        'myAction'}')\`) or a function available in ${target}.`,
+      false
+    );
   }
 
   return (...args: any[]) => {
@@ -411,4 +419,10 @@ function makeClosureAction(
       return join(self, fn, ...processArgs(args));
     });
   };
+}
+
+// TODO: HAX this is cause the above code assumes that ref will be an object with
+// methods, which is not true after the recent refactors
+function invokeRef(this: Reference, value: unknown) {
+  updateRef(this, value);
 }

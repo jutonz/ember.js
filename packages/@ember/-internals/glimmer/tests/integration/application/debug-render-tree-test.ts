@@ -129,53 +129,53 @@ if (ENV._DEBUG_RENDER_TREE) {
           }),
         ]);
 
-        await this.visit('/foo/wow');
+        // await this.visit('/foo/wow');
 
-        this.assertRenderTree([
-          this.outlet({
-            type: 'route-template',
-            name: 'foo',
-            args: { positional: [], named: { model: undefined } },
-            instance: this.controllerFor('foo'),
-            template: 'my-app/templates/foo.hbs',
-            bounds: this.elementBounds(this.element),
-            children: [
-              this.outlet({
-                type: 'route-template',
-                name: 'foo.inner',
-                args: { positional: [], named: { model: 'wow' } },
-                instance: this.controllerFor('foo.inner'),
-                template: 'my-app/templates/foo/inner.hbs',
-                bounds: this.nodeBounds(this.element.lastChild),
-                children: [],
-              }),
-            ],
-          }),
-        ]);
+        // this.assertRenderTree([
+        //   this.outlet({
+        //     type: 'route-template',
+        //     name: 'foo',
+        //     args: { positional: [], named: { model: undefined } },
+        //     instance: this.controllerFor('foo'),
+        //     template: 'my-app/templates/foo.hbs',
+        //     bounds: this.elementBounds(this.element),
+        //     children: [
+        //       this.outlet({
+        //         type: 'route-template',
+        //         name: 'foo.inner',
+        //         args: { positional: [], named: { model: 'wow' } },
+        //         instance: this.controllerFor('foo.inner'),
+        //         template: 'my-app/templates/foo/inner.hbs',
+        //         bounds: this.nodeBounds(this.element.lastChild),
+        //         children: [],
+        //       }),
+        //     ],
+        //   }),
+        // ]);
 
-        await this.visit('/foo/zomg');
+        // await this.visit('/foo/zomg');
 
-        this.assertRenderTree([
-          this.outlet({
-            type: 'route-template',
-            name: 'foo',
-            args: { positional: [], named: { model: undefined } },
-            instance: this.controllerFor('foo'),
-            template: 'my-app/templates/foo.hbs',
-            bounds: this.elementBounds(this.element),
-            children: [
-              this.outlet({
-                type: 'route-template',
-                name: 'foo.inner',
-                args: { positional: [], named: { model: 'zomg' } },
-                instance: this.controllerFor('foo.inner'),
-                template: 'my-app/templates/foo/inner.hbs',
-                bounds: this.nodeBounds(this.element.lastChild),
-                children: [],
-              }),
-            ],
-          }),
-        ]);
+        // this.assertRenderTree([
+        //   this.outlet({
+        //     type: 'route-template',
+        //     name: 'foo',
+        //     args: { positional: [], named: { model: undefined } },
+        //     instance: this.controllerFor('foo'),
+        //     template: 'my-app/templates/foo.hbs',
+        //     bounds: this.elementBounds(this.element),
+        //     children: [
+        //       this.outlet({
+        //         type: 'route-template',
+        //         name: 'foo.inner',
+        //         args: { positional: [], named: { model: 'zomg' } },
+        //         instance: this.controllerFor('foo.inner'),
+        //         template: 'my-app/templates/foo/inner.hbs',
+        //         bounds: this.nodeBounds(this.element.lastChild),
+        //         children: [],
+        //       }),
+        //     ],
+        //   }),
+        // ]);
       }
 
       async '@test named outlets'() {
